@@ -16,7 +16,10 @@ router.get("/profile", protect, getUserProfile);
 router.patch(
   "/profile",
   protect,
-  upload.single("profilePicture"), // IMPORTANT
+  upload.fields([
+    { name: "profilePicture", maxCount: 1 },
+    { name: "photos", maxCount: 5 }, // 👈 add this
+  ]),
   updateUserProfile
 );
 

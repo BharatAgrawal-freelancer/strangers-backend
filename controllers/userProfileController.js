@@ -47,17 +47,18 @@ export const getUserProfile = async (req, res) => {
 // ==========================
 export const updateUserProfile = async (req, res) => {
   try {
-    console.log("PATCH PROFILE BODY:", req.body);
 
     const updates = {};
 
-    // ✅ HANDLE ALL FIELDS SAFELY
+    // ==========================
+    // HANDLE TEXT FIELDS
+    // ==========================
     Object.keys(req.body).forEach((key) => {
       if (!editableFields.includes(key)) return;
 
       let value = req.body[key];
 
-      // ✅ Parse JSON fields
+      // Parse JSON fields
       if (jsonFields.includes(key)) {
         try {
           value = JSON.parse(value);
@@ -66,7 +67,7 @@ export const updateUserProfile = async (req, res) => {
         }
       }
 
-      // ✅ FIX subscriptions (CRITICAL FIX)
+      // Fix subscriptions
       if (key === "subscriptions") {
         if (!Array.isArray(value)) {
           value = [];
@@ -77,16 +78,37 @@ export const updateUserProfile = async (req, res) => {
     });
 
     // ==========================
-    // IMAGE UPLOAD
+    // IMAGE UPLOAD (MULTIPLE)
     // ==========================
-    if (req.file) {
-      console.log("Uploading image to Cloudinary...");
 
-      const result = await uploadFromBuffer(req.file.buffer);
+    // 🔹 PROFILE PICTURE (single)
+    if (req.files?.profilePicture) {
+      console.log("Uploading profile picture...");
+
+      const file = req.files.profilePicture[0];
+      const result = await uploadFromBuffer(file.buffer);
 
       updates.profilePicture = result.secure_url;
+    }
 
-      console.log("Cloudinary URL:", result.secure_url);
+    // 🔹 PHOTOS (multiple)
+    if (req.files?.photos) {
+      console.log("Uploading multiple photos...");
+
+      const uploadedPhotos = [];
+
+      for (const file of req.files.photos) {
+        const result = await uploadFromBuffer(file.buffer);
+        uploadedPhotos.push(result.secure_url);
+      }
+
+      // 👉 append + limit 5 (BEST PRACTICE)
+      const user = await UserModel.findById(req.userId);
+
+      updates.photos = [
+        ...(user.photos || []),
+        ...uploadedPhotos,
+      ].slice(0, 5);
     }
 
     // ==========================
