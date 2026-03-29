@@ -130,9 +130,6 @@ export const verifyOtp = async (req, res) => {
   try {
     let { email, otp, password, mobile } = req.body;
 
-    // -------------------------
-    // Basic validations
-    // -------------------------
     if (!email || !otp || !password) {
       return res.status(400).json({
         message: "Email, OTP and password are required",
@@ -147,9 +144,6 @@ export const verifyOtp = async (req, res) => {
 
     email = email.trim().toLowerCase();
 
-    // -------------------------
-    // Verify OTP
-    // -------------------------
     const record = await Otp.findOne({ email, otp });
 
     if (!record || record.expiresAt < new Date()) {
@@ -158,9 +152,6 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    // -------------------------
-    // Find user
-    // -------------------------
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -169,16 +160,10 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    // -------------------------
-    //  ALWAYS UPDATE PASSWORD
-    // -------------------------
+    // password set
     const hash = await bcrypt.hash(password, 10);
     user.password = hash;
 
-    // -------------------------
-    // If mobile provided → update
-    // (Signup case)
-    // -------------------------
     if (mobile) {
       if (!/^[0-9]{10}$/.test(mobile)) {
         return res.status(400).json({
@@ -192,63 +177,14 @@ export const verifyOtp = async (req, res) => {
 
     await user.save();
 
-    // -------------------------
-    // Cleanup OTP
-    // -------------------------
     await Otp.deleteMany({ email });
+
+    // 🔥 ADD THIS (IMPORTANT)
+    const token = generateToken(user._id);
 
     return res.status(200).json({
       message: "Password set/updated successfully",
-    });
-
-  } catch (err) {
-  console.error("VERIFY OTP ERROR:", err);
-  return res.status(500).json({
-    error: err.message,
-  });
-}
-};
-
-/* ======================================================
-   LOGIN
-====================================================== */
-export const login = async (req, res) => {
-  try {
-    let { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required",
-      });
-    }
-
-    email = normalizeEmail(email);
-
-    const user = await User.findOne({ email });
-
-    if (!user)
-      return res.status(404).json({ message: "User not found" });
-
-    if (!user.password) {
-      return res.status(400).json({
-        message: "Password not set for this account",
-      });
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    //  CREATE JWT TOKEN
-    const token = generateToken(user._id);
-
-    res.status(200).json({
-      message: "Login successful",
-      token,           //  JWT
+      token, // ✅ send token
       user: {
         id: user._id,
         email: user.email,
@@ -256,6 +192,77 @@ export const login = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("VERIFY OTP ERROR:", err);
+    return res.status(500).json({
+      error: err.message,
+    });
+  }
+};
+
+/* ======================================================
+   LOGIN
+====================================================== */
+export const login = async (req, res) => {
+  console.log("🔵 LOGIN CONTROLLER START");
+
+  try {
+    let { email, password } = req.body;
+    console.log("📥 BODY:", req.body);
+
+    if (!email || !password) {
+      console.log("❌ Missing email/password");
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    email = normalizeEmail(email);
+    console.log("📧 Normalized Email:", email);
+
+    const user = await User.findOne({ email });
+    console.log("👤 User Found:", user ? "YES" : "NO");
+
+    if (!user) {
+      console.log("❌ USER NOT FOUND");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.password) {
+      console.log("❌ PASSWORD NOT SET");
+      return res.status(400).json({
+        message: "Password not set for this account",
+      });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    console.log("🔑 Password Match:", match);
+
+    if (!match) {
+      console.log("❌ PASSWORD WRONG");
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    console.log("🟢 BEFORE TOKEN");
+
+    const token = generateToken(user._id);
+
+    console.log("🟢 TOKEN GENERATED:", token ? "YES" : "NO");
+
+    console.log("🟢 SENDING RESPONSE");
+
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+      },
+    });
+
+  } catch (err) {
+    console.log("🔥 LOGIN ERROR:", err);
+    return res.status(500).json({ error: err.message });
   }
 };

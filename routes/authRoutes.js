@@ -10,13 +10,15 @@ import {
 
 const router = express.Router();
 
-/* ======================================================
-   FORM AUTH ROUTES
-====================================================== */
 
+
+router.post("/login", (req, res, next) => {
+  console.log("LOGIN ROUTE HIT"); // 👈 IMPORTANT
+  next();
+}, login);
 router.post("/signup", signup);
 router.post("/verify-otp", verifyOtp);
-router.post("/login", login);
+
 
 /* ======================================================
    SESSION USER
